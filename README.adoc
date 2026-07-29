@@ -2,7 +2,7 @@
 :linkattrs:
 :project-owner: oracle-actions
 :project-name:  setup-testpilot
-:project-tag:   v1.0.27
+:project-tag:   v1.0.28
 
 ifdef::env-github[]
 :tip-caption: :bulb:
@@ -20,6 +20,7 @@ This GitHub Action helps the integration of Oracle Test Pilot for Third-Party So
 
 - `create`: used to request the provisioning of the OCI service to test (typically a database)
 - `delete`: used to de-provision the OCI service tested
+- `create-registration-token`: used to create a registration token
 - `skip-testing`: used to check if this GitHub pull request (including all the associated commits) should not perform any non-regression test, for example if changes involve files or folders that do not contain source code. By using the output of this action, numerous GitHub Action workflows can see their runtime durations drastically reduced.
 
 Supported platforms:
@@ -40,6 +41,7 @@ Valid OCI service are: `autonomous-transaction-processing-serverless-19c`, `auto
 | connection-string-format | | easy-connect | The resulting connection string format: `easy-connect` or `tns`.
 | surround-connection-string-with-double-quotes | | false | If the connection string must be surrounded by double quotes: `true` or `false`.
 | prefix_list |  |  | A comma separated list of file(s) or folder(s) that if changed should not trigger any test (example: folder containing documentation).
+| github-token | |  | A valid GitHub token.
 |===
 
 == Outputs

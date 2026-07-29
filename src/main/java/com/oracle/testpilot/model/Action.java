@@ -13,7 +13,8 @@ package com.oracle.testpilot.model;
 public enum Action {
 	CREATE("Creating OCI resource..."),
 	SKIP_TESTING("Analyzing committed files to skip tests eventually..."),
-	DELETE("Deleting OCI resource...");
+	DELETE("Deleting OCI resource..."),
+	CREATE_REGISTRATION_TOKEN("Creating registration token...");
 
 	private final String banner;
 
