@@ -23,7 +23,7 @@ public class Main {
 		System.setProperty("java.net.useSystemProxies", "false");
 	}
 
-	public static final String VERSION="1.0.27";
+	public static final String VERSION="1.0.28";
 
 	public static void main(final String[] args) {
 		int exitStatus = 0;
@@ -48,6 +48,10 @@ public class Main {
 
 					case SKIP_TESTING:
 						System.out.printf("Skip testing check failed (%d)%n", exitStatus);
+						break;
+
+					case CREATE_REGISTRATION_TOKEN:
+						System.out.printf("Registration token creation failed (%d)%n", exitStatus);
 						break;
 				}
 			}

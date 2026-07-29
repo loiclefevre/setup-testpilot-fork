@@ -11,11 +11,7 @@ import com.oracle.testpilot.json.JSON;
 import com.oracle.testpilot.json.JSONArray;
 import com.oracle.testpilot.model.*;
 
-import java.io.BufferedOutputStream;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.PrintWriter;
+import java.io.*;
 import java.net.ProxySelector;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -62,8 +58,10 @@ public class Session {
 
 	private String prefixList;
 	private String owner;
+	private String ownerType; // User or Organization
 	private String repository;
 	private String pullRequestNumber;
+	private String githubToken;
 
 	public Session(final String[] args) {
 		// ---------------------------------------------------------------------------------------------------------------------
@@ -128,6 +126,20 @@ public class Session {
 
 				case "--delete":
 					action = DELETE;
+					break;
+
+				case "--create-registration-token":
+					action = CREATE_REGISTRATION_TOKEN;
+					break;
+
+				case "--github-token":
+					if (i + 1 < args.length) {
+						githubToken = args[++i];
+					}
+					else {
+						throw new TestPilotException(USER_MISSING_PARAMETER,
+								new IllegalArgumentException("Missing value for --github-token parameter"));
+					}
 					break;
 
 				case "--user":
@@ -226,6 +238,16 @@ public class Session {
 					}
 					break;
 
+				case "--owner-type":
+					if (i + 1 < args.length) {
+						ownerType = args[++i];
+					}
+					else {
+						throw new TestPilotException(OWNER_TYPE_MISSING_PARAMETER,
+								new IllegalArgumentException("Missing value for --owner-type parameter"));
+					}
+					break;
+
 				case "--repository":
 					if (i + 1 < args.length) {
 						repository = args[++i];
@@ -263,10 +285,16 @@ public class Session {
 				    --user <user>              user name to be used (if several, then comma separated list without any space)
 				    --connection-string-format requested connection string format (easy-connect*, or tns)
 				    --surround-connection-string-with-double-quotes tells if the connection string must be surrounded with double quotes (false*, or true)
+				
 				--delete: to de-provision the Oracle Cloud Infrastructure service
 				    Options:
 				    --oci-service <value>      OCI service type (autonomous-transaction-processing-serverless-26ai, autonomous-transaction-processing-serverless-19c, base-database-service-26ai, base-database-service-26ai-rac, base-database-service-19c, base-database-service-21c)
 				    --user <user>              user name to be used (if several, then comma separated list without any space)
+				
+				--create-registration-token: to create a self-hosted runner registration token
+					Options:
+					--github-token <value>     the github token
+				
 				--skip-testing
 				    Options:
 					--owner <owner>            GitHub project owner
@@ -288,11 +316,148 @@ public class Session {
 				delete();
 				break;
 
+			case CREATE_REGISTRATION_TOKEN:
+				createRegistrationToken();
+				break;
+
 			case SKIP_TESTING:
 				skipTesting();
 				break;
 		}
 	}
+
+    private void createRegistrationToken() {
+		if(githubToken == null || githubToken.isEmpty()) {
+			throw new TestPilotException(CREATE_REGISTRATION_TOKEN_MISSING_TOKEN);
+		}
+        if(clientId == null || clientId.isEmpty()) {
+			throw new TestPilotException(CREATE_REGISTRATION_TOKEN_MISSING_CLIENT_ID);
+		}
+        if(token == null || token.isEmpty()) {
+			throw new TestPilotException(CREATE_REGISTRATION_TOKEN_MISSING_CLIENT_SECRET);
+		}
+
+		try
+		{
+			// -1- retrieve GitHub Action registration token
+			//     validity: 60 minutes
+			final RegistrationToken registrationToken = getRegistrationToken();
+
+			final String uri = String.format("https://%s/ords/testpilot/tokens/github/provide-registration-token", apiHOST);
+
+			boolean done = false;
+			int retryCount = 5;
+
+			do {
+				// -2- As we need to store it within Test Pilot, retrieve an OAuth2 token...
+				setOAuth2Token();
+
+				// -3- Then store it
+				final HttpRequest request = HttpRequest.newBuilder()
+						.uri(new URI(uri))
+						.headers("Accept", "application/json",
+								"Content-Type", "application/json",
+								"Pragma", "no-cache",
+								"Cache-Control", "no-store",
+								"User-Agent", "setup-testpilot/" + Main.VERSION,
+								"Authorization", "Bearer " + token)
+						.POST(HttpRequest.BodyPublishers.ofString(
+								String.format("{\"owner\":\"%s\",\"repository\":\"%s\",\"runID\":\"%s\",\"token\":\"%s\",\"expires_at\":\"%s\"}",
+										owner, repository, runID, registrationToken.getToken(), registrationToken.getExpires_at())
+						))
+						.build();
+
+				try (HttpClient client = HttpClient
+						.newBuilder()
+						.connectTimeout(Duration.ofSeconds(ONE_MINUTE_TIMEOUT))
+						.version(HttpClient.Version.HTTP_1_1)
+						.proxy(ProxySelector.getDefault())
+						.followRedirects(HttpClient.Redirect.NORMAL)
+						.build()) {
+
+					final HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+
+					if (response.statusCode() == 201) {
+						done = true;
+					}
+					else if(response.statusCode() == 429) {
+						// too many requests (rate limiting)
+						Thread.sleep(10 * 1000L);
+					}
+					else if(response.statusCode() == 504) {
+						// Gateway time-out (load balancer)
+						// retry 5 times with 1 minute time-out each time
+						retryCount--;
+						if(retryCount == 0) {
+							throw new TestPilotException(CREATE_REGISTRATION_TOKEN_REST_ENDPOINT_ISSUE,
+									new IllegalStateException("HTTP/S status code: " + response.statusCode(),
+											new IllegalStateException(response.body())));
+						} else {
+							System.out.printf("Gateway time-out, retrying in 10 seconds...%n");
+							Thread.sleep(10 * 1000L);
+						}
+					}
+					else {
+						throw new TestPilotException(CREATE_REGISTRATION_TOKEN_REST_ENDPOINT_ISSUE,
+								new IllegalStateException("HTTP/S status code: " + response.statusCode(),
+										new IllegalStateException(response.body())));
+					}
+				}
+			} while(!done);
+		} catch (URISyntaxException e) {
+			throw new TestPilotException(WRONG_PROVIDE_REGISTRATION_TOKEN_URI, e);
+        } catch (IOException | InterruptedException e) {
+			throw new TestPilotException(WRONG_PROVIDE_REGISTRATION_TOKEN_REST_CALL, e);
+        }
+    }
+
+    private RegistrationToken getRegistrationToken() {
+		final String uri = String.format("https://api.github.com/%s/actions/runners/registration-token", getRegistrationTokenURIFragment());
+
+		try {
+			final HttpRequest request = HttpRequest.newBuilder()
+					.uri(new URI(uri))
+					.headers(
+							"Accept", "application/vnd.github+json",
+							"X-GitHub-Api-Version", "2026-03-10",
+							"User-Agent", "setup-testpilot/" + Main.VERSION,
+							"Authorization", tokenAuth(githubToken))
+					.POST(HttpRequest.BodyPublishers.ofString("{}"))
+					.build();
+
+			try (HttpClient client = HttpClient
+					.newBuilder()
+					.connectTimeout(Duration.ofSeconds(ONE_MINUTE_TIMEOUT))
+					.version(HttpClient.Version.HTTP_1_1)
+					.proxy(ProxySelector.getDefault())
+					.followRedirects(HttpClient.Redirect.NORMAL)
+					.build()) {
+
+				final HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+
+				if (response.statusCode() == 201) {
+					RegistrationToken registrationToken = new JSON<>(RegistrationToken.class).parse(response.body());
+					return registrationToken;
+				} else {
+					throw new TestPilotException(RETRIEVE_REGISTRATION_TOKEN,
+							new IllegalStateException("HTTP/S status code: " + response.statusCode()));
+				}
+			}
+        } catch (URISyntaxException e) {
+			throw new TestPilotException(WRONG_CREATE_REGISTRATION_TOKEN_URI, e);
+        }
+		catch (IOException  | InterruptedException e) {
+			throw new TestPilotException(WRONG_CREATE_REGISTRATION_TOKEN_REST_CALL, e);
+		}
+    }
+
+    private String getRegistrationTokenURIFragment() {
+		if( "Organization".equals(ownerType) ) {
+			return String.format("orgs/%s",owner);
+		} else {
+			return String.format("repos/%s/%s",owner,repository);
+		}
+    }
 
 	private void create() {
 		if (users == null || users.isEmpty()) {
@@ -664,6 +829,10 @@ public class Session {
 
 	private String basicAuth() {
 		return String.format("Basic %s", Base64.getEncoder().encodeToString((String.format("%s:%s", clientId, token)).getBytes()));
+	}
+
+	private String tokenAuth(final String token) {
+		return String.format("token %s", token);
 	}
 
 	/**

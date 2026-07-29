@@ -9,7 +9,7 @@ branding:
 inputs:
   version:
     description: 'The version to use.'
-    default: 'v1.0.27'
+    default: 'v1.0.28'
     required: true
   action:
     description: 'The action to run (create*, delete, skip-testing).'
@@ -32,6 +32,10 @@ inputs:
     required: false
   prefix_list:
     description: 'A comma separated list of file(s) or folder(s) that if changed should not trigger any test (example: folder containing documentation).'
+    required: false
+  github-token:
+    description: 'The GitHub token to use.'
+    default: ''
     required: false
 
 outputs:
@@ -87,3 +91,15 @@ runs:
         --connection-string-format "${{ inputs.connection-string-format }}" \
         --surround-connection-string-with-double-quotes "${{ inputs.surround-connection-string-with-double-quotes }}"
 
+    - name: 'Create registration token'
+      id: create_registration_token
+      if: inputs.action == 'create-registration-token'
+      shell: bash -leo pipefail {0}
+      env:
+        RUNID: ${{ github.run_number }}
+      run: |
+        ${GITHUB_ACTION_PATH}/setup-testpilot --create-registration-token \
+        --owner "${{ github.repository_owner }}" \
+        --repository "${{ github.event.repository.name }}" \
+        --owner-type "${{ github.event.repository.owner.type }}" \
+        --github-token "${{ inputs.github-token }}" 
