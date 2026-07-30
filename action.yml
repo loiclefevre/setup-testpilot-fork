@@ -9,7 +9,7 @@ branding:
 inputs:
   version:
     description: 'The version to use.'
-    default: 'v1.0.28'
+    default: 'v1.0.29'
     required: true
   action:
     description: 'The action to run (create*, delete, skip-testing).'
@@ -35,6 +35,10 @@ inputs:
     required: false
   github-token:
     description: 'The GitHub token to use.'
+    default: ''
+    required: false
+  target-repository:
+    description: 'The target repository for registration token creation.'
     default: ''
     required: false
 
@@ -100,6 +104,6 @@ runs:
       run: |
         ${GITHUB_ACTION_PATH}/setup-testpilot --create-registration-token \
         --owner "${{ github.repository_owner }}" \
-        --repository "${{ github.event.repository.name }}" \
+        --repository "${{ inputs.target-repository || github.event.repository.name }}" \
         --owner-type "${{ github.event.repository.owner.type }}" \
         --github-token "${{ inputs.github-token }}" 

@@ -2,7 +2,7 @@
 :linkattrs:
 :project-owner: oracle-actions
 :project-name:  setup-testpilot
-:project-tag:   v1.0.28
+:project-tag:   v1.0.29
 
 ifdef::env-github[]
 :tip-caption: :bulb:
@@ -42,6 +42,7 @@ Valid OCI service are: `autonomous-transaction-processing-serverless-19c`, `auto
 | surround-connection-string-with-double-quotes | | false | If the connection string must be surrounded by double quotes: `true` or `false`.
 | prefix_list |  |  | A comma separated list of file(s) or folder(s) that if changed should not trigger any test (example: folder containing documentation).
 | github-token | |  | A valid GitHub token.
+| target-repository | | the repository where the action runs | To override the default repository used for registration token creation.
 |===
 
 == Outputs
