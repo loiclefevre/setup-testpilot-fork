@@ -53,6 +53,7 @@ public class TestPilotException extends RuntimeException {
 	public static final int WRONG_PROVIDE_REGISTRATION_TOKEN_REST_CALL = 41;
 	public static final int RETRIEVE_REGISTRATION_TOKEN = 42;
 	public static final int CREATE_REGISTRATION_TOKEN_REST_ENDPOINT_ISSUE = 43;
+	public static final int FULLY_QUALIFIED_NAMES_MISSING_PARAMETER = 44;
 
 	private final int errorCode;
 
