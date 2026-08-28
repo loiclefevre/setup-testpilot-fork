@@ -282,7 +282,7 @@ public class Session {
 				--create: to provision the requested Oracle Cloud Infrastructure service to test
 				    Options:
 				    --oci-service <value>      OCI service type (autonomous-transaction-processing-serverless-26ai, autonomous-transaction-processing-serverless-19c, base-database-service-26ai, base-database-service-26ai-rac, base-database-service-19c, base-database-service-21c)
-				    --user <user>              user name to be used (if several, then comma separated list without any space)
+				    --user <user>              user name to be used (if several, then comma-separated list without any space)
 				    --connection-string-format requested connection string format (easy-connect*, or tns)
 				    --surround-connection-string-with-double-quotes tells if the connection string must be surrounded with double quotes (false*, or true)
 				
@@ -491,7 +491,7 @@ public class Session {
 								"Authorization", "Bearer " + token)
 						.POST(HttpRequest.BodyPublishers.ofString(
 								String.format("{\"runID\":\"%s\",\"jobID\":\"%s\",\"type\":\"%s\",\"user\":[%s]}",
-										runID, jobID, type, buildUserList(users,true))
+										runID, jobID, type, buildUserList(users,true, false))
 						))
 						.build();
 
@@ -522,7 +522,7 @@ public class Session {
 										:
 										String.format("tcps://%s.oraclecloud.com:1521/%s_tp.adb.oraclecloud.com?retry_count=5&retry_delay=1&oracle.net.useTcpFastOpen=true&ssl_server_dn_match=false", database.getHost(), database.getService());
 
-								writeDatabaseInformationToGitHubOutput(database, connectionString);
+								writeDatabaseInformationToGitHubOutput(database, connectionString, buildUserList(users,true, true), "tcps", 1521);
 							}
 							break;
 							case TechnologyType.DB19C:
@@ -536,7 +536,7 @@ public class Session {
 										:
 										String.format("%s:1521/%s?retry_count=3&retry_delay=1", database.getHost(), database.getService());
 
-								writeDatabaseInformationToGitHubOutput(database, connectionString);
+								writeDatabaseInformationToGitHubOutput(database, connectionString, buildUserList(users,true, true), "tcp", 1521);
 							}
 							break;
 							case TechnologyType.DB26AIRAC: {
@@ -549,7 +549,7 @@ public class Session {
 										:
 										String.format("%s:1521/%s?retry_count=3&retry_delay=1", database.getHost(), database.getService());
 
-								writeDatabaseInformationToGitHubOutput(database, connectionString);
+								writeDatabaseInformationToGitHubOutput(database, connectionString, buildUserList(users,true, true), "tcp", 1521);
 							}
 							break;
 						}
@@ -619,27 +619,33 @@ public class Session {
 		}
 	}
 
-	private void writeDatabaseInformationToGitHubOutput(Database database, String connectionString) throws FileNotFoundException {
+	private void writeDatabaseInformationToGitHubOutput(Database database, String connectionString, String users, String protocol, int port) throws FileNotFoundException {
 		if (githubOutput != null) {
 			try (PrintWriter out = new PrintWriter(new BufferedOutputStream(new FileOutputStream(githubOutput, true)))) {
 				System.out.printf("::add-mask::%s%n", database.getPassword());
 				if(useDoubleQuotesForConnectionStringSuffix){
 					out.printf("""
+								database_protocol=%s
 								database_host=%s
+								database_port=%d
 								database_service=%s
+								database_user=%s
 								database_password=%s
 								database_version=%s
 								connection_string_suffix="%s"%n""",
-							database.getHost(), database.getService(), database.getPassword(), database.getVersion(),
+							protocol, database.getHost(), port, database.getService(), users, database.getPassword(), database.getVersion(),
 							connectionString);
 				} else {
 					out.printf("""
+								database_protocol=%s
 								database_host=%s
+								database_port=%d
 								database_service=%s
+								database_user=%s
 								database_password=%s
 								database_version=%s
 								connection_string_suffix=%s%n""",
-							database.getHost(), database.getService(), database.getPassword(), database.getVersion(),
+							protocol, database.getHost(), port, database.getService(), users, database.getPassword(), database.getVersion(),
 							connectionString);
 				}
 			}
@@ -677,7 +683,7 @@ public class Session {
 								"Authorization", "Bearer " + token)
 						.POST(HttpRequest.BodyPublishers.ofString(
 								String.format("{\"runID\":\"%s\",\"jobID\":\"%s\",\"type\":\"%s\",\"user\":[%s]}",
-										runID, jobID, type, buildUserList(users,false))
+										runID, jobID, type, buildUserList(users,false, false))
 						))
 						.build();
 
@@ -794,7 +800,7 @@ public class Session {
 		}
 	}
 
-	private String buildUserList(final String users, boolean create) {
+	private String buildUserList(final String users, boolean create, boolean includeRunId) {
 		final StringBuilder sb = new StringBuilder();
 		int i = 0;
 		final String[] usersArray = users.split(",");
@@ -808,7 +814,7 @@ public class Session {
 			if (i > 0) {
 				sb.append(',');
 			}
-			sb.append("\"").append(user).append("\"");
+			sb.append("\"").append(user).append(includeRunId?"_"+runID:"").append("\"");
 			i++;
 		}
 

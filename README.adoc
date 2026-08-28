@@ -2,7 +2,7 @@
 :linkattrs:
 :project-owner: oracle-actions
 :project-name:  setup-testpilot
-:project-tag:   v1.0.29
+:project-tag:   v1.0.30
 
 ifdef::env-github[]
 :tip-caption: :bulb:
@@ -34,7 +34,7 @@ Following inputs may be used as `step.with` keys:
 [%header,cols="<2,<,<,<3",width="100%"]
 |===
 | Name     | Required | Default         | Description
-| action  | Yes      | create | A valid action among: `create`, `delete`, `skip-testing`.
+| action  | Yes      | create | A valid action among: `create`, `delete`, `create-registration-token`, `skip-testing`.
 | oci-service |          | autonomous-transaction-processing-serverless-26ai            | A valid Oracle Cloud Infrastructure service to be tested.
 Valid OCI service are: `autonomous-transaction-processing-serverless-19c`, `autonomous-transaction-processing-serverless-26ai`, `base-database-service-19c`, `base-database-service-21c`, `base-database-service-26ai`, and `base-database-service-26ai-rac`.
 | user     |          |                 | The database username to be used for database creation. If multiple users (up to 10) are required then enter a comma-separated list of usernames (no space). Limit usernames to 118 chars maximum.  Accepted chars are: upper case letters, lower case letters, digits, colon, hyphen, underscore, and dot.
@@ -52,8 +52,11 @@ Following outputs may be used as `step.if` or for `step.env` keys:
 [%header,cols="<2,<,<3",width="100%"]
 |===
 | Name              | Output of Action | Description
+| database_protocol          | create   | The protocol to access the database(s).
 | database_host              | create   | The hostname of the database(s).
+| database_port              | create   | The port of the database(s).
 | database_service           | create   | The database service name of the database(s).
+| database_user              | create   | The database user of the database(s). If several are provided, then this will be a list of comma-separated users.
 | database_password          | create   | The database password of the database(s).
 | database_version           | create   | The version of the database(s).
 | connection_string_suffix | create   | The database connection string suffix (to be put after @), it can be used to build the full connection string.

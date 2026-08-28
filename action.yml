@@ -1,6 +1,6 @@
 name: Setup-Oracle-Test-Pilot
 
-description: 'Setup Test Pilot helps integrating Oracle Test Pilot for Third Party Software within your GitHub Action workflows.'
+description: 'Setup Test Pilot helps integrating Oracle Test Pilot for Third-Party Software within your GitHub Action workflows.'
 
 branding:
   icon: 'check-circle'
@@ -9,7 +9,7 @@ branding:
 inputs:
   version:
     description: 'The version to use.'
-    default: 'v1.0.29'
+    default: 'v1.0.30'
     required: true
   action:
     description: 'The action to run (create*, delete, skip-testing).'
@@ -43,21 +43,30 @@ inputs:
     required: false
 
 outputs:
+  database_protocol:
+    description: 'The protocol to access the database.'
+    value: ${{ steps.create.outputs.database_protocol }}
   database_host:
     description: 'The database hostname.'
-    value: ${{ steps.create_or_delete.outputs.database_host }}
+    value: ${{ steps.create.outputs.database_host }}
+  database_port:
+    description: 'The database port.'
+    value: ${{ steps.create.outputs.database_port }}
   database_service:
     description: 'The database service name.'
-    value: ${{ steps.create_or_delete.outputs.database_service }}
+    value: ${{ steps.create.outputs.database_service }}
+  database_user:
+    description: 'The database user. If several are provided, then this will be a list of comma-separated users.'
+    value: ${{ steps.create.outputs.database_user }}
   database_password:
     description: 'The database password.'
-    value: ${{ steps.create_or_delete.outputs.database_password }}
+    value: ${{ steps.create.outputs.database_password }}
   database_version:
     description: 'The database version.'
-    value: ${{ steps.create_or_delete.outputs.database_version }}
+    value: ${{ steps.create.outputs.database_version }}
   connection_string_suffix:
     description: 'The database connection string suffix (after @).'
-    value: ${{ steps.create_or_delete.outputs.connection_string_suffix }}
+    value: ${{ steps.create.outputs.connection_string_suffix }}
   skip_tests:
     description: 'Should skip tests?'
     value: ${{ steps.analyze_commits.outputs.skip_tests }}
@@ -82,15 +91,28 @@ runs:
         --owner "${{ github.repository_owner }}" --repository "${{ github.event.repository.name }}" --pull-request-number "${{ github.event.pull_request.number }}" \
         --prefix-list "${{ inputs.prefix_list }}"
 
-    - name: 'Create or Delete'
-      id: create_or_delete
-      if: inputs.action == 'create' || inputs.action == 'delete'
+    - name: 'Create'
+      id: create
+      if: inputs.action == 'create'
       shell: bash -leo pipefail {0}
       env:
         RUNID: ${{ github.run_number }}
         JOBID: ${{ job.check_run_id }}
       run: |
-        ${GITHUB_ACTION_PATH}/setup-testpilot --${{ inputs.action }} \
+        ${GITHUB_ACTION_PATH}/setup-testpilot --create \
+        --user "${{ inputs.user }}" --oci-service "${{ inputs.oci-service }}" \
+        --connection-string-format "${{ inputs.connection-string-format }}" \
+        --surround-connection-string-with-double-quotes "${{ inputs.surround-connection-string-with-double-quotes }}"
+
+    - name: 'Delete'
+      id: delete
+      if: inputs.action == 'delete'
+      shell: bash -leo pipefail {0}
+      env:
+        RUNID: ${{ github.run_number }}
+        JOBID: ${{ job.check_run_id }}
+      run: |
+        ${GITHUB_ACTION_PATH}/setup-testpilot --delete \
         --user "${{ inputs.user }}" --oci-service "${{ inputs.oci-service }}" \
         --connection-string-format "${{ inputs.connection-string-format }}" \
         --surround-connection-string-with-double-quotes "${{ inputs.surround-connection-string-with-double-quotes }}"
