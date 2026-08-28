@@ -55,6 +55,7 @@ public class Session {
 	private ConnectionStringFormat connectionStringFormat;
 
 	private boolean useDoubleQuotesForConnectionStringSuffix;
+	private boolean useFullyQualifiedNames;
 
 	private String prefixList;
 	private String owner;
@@ -214,6 +215,18 @@ public class Session {
 					}
 					break;
 
+				case "--fully-qualified-names":
+					if (i + 1 < args.length) {
+						final String temp = args[++i];
+
+						useFullyQualifiedNames = "true".equalsIgnoreCase(temp);
+					}
+					else {
+						throw new TestPilotException(FULLY_QUALIFIED_NAMES_MISSING_PARAMETER,
+								new IllegalArgumentException("Missing value for --fully-qualified-names parameter"));
+					}
+					break;
+
 				case "--skip-testing":
 					action = SKIP_TESTING;
 					break;
@@ -285,6 +298,7 @@ public class Session {
 				    --user <user>              user name to be used (if several, then comma-separated list without any space)
 				    --connection-string-format requested connection string format (easy-connect*, or tns)
 				    --surround-connection-string-with-double-quotes tells if the connection string must be surrounded with double quotes (false*, or true)
+				    --fully-qualified-names    tells if the database_host and database_service output parameters must be fully qualified (including the domain name) (false*, or true)
 				
 				--delete: to de-provision the Oracle Cloud Infrastructure service
 				    Options:
@@ -522,7 +536,8 @@ public class Session {
 										:
 										String.format("tcps://%s.oraclecloud.com:1521/%s_tp.adb.oraclecloud.com?retry_count=5&retry_delay=1&oracle.net.useTcpFastOpen=true&ssl_server_dn_match=false", database.getHost(), database.getService());
 
-								writeDatabaseInformationToGitHubOutput(database, connectionString, buildUserList(users,true, true), "tcps", 1521);
+								writeDatabaseInformationToGitHubOutput(database, connectionString, buildUserList(users,true, true), "tcps", 1521,
+										database.getHost()+(useFullyQualifiedNames ?".oraclecloud.com":""), database.getService()+(useFullyQualifiedNames ?"_tp.adb.oraclecloud.com":""));
 							}
 							break;
 							case TechnologyType.DB19C:
@@ -536,7 +551,7 @@ public class Session {
 										:
 										String.format("%s:1521/%s?retry_count=3&retry_delay=1", database.getHost(), database.getService());
 
-								writeDatabaseInformationToGitHubOutput(database, connectionString, buildUserList(users,true, true), "tcp", 1521);
+								writeDatabaseInformationToGitHubOutput(database, connectionString, buildUserList(users,true, true), "tcp", 1521, database.getHost(), database.getService());
 							}
 							break;
 							case TechnologyType.DB26AIRAC: {
@@ -549,7 +564,7 @@ public class Session {
 										:
 										String.format("%s:1521/%s?retry_count=3&retry_delay=1", database.getHost(), database.getService());
 
-								writeDatabaseInformationToGitHubOutput(database, connectionString, buildUserList(users,true, true), "tcp", 1521);
+								writeDatabaseInformationToGitHubOutput(database, connectionString, buildUserList(users,true, true), "tcp", 1521, database.getHost(), database.getService());
 							}
 							break;
 						}
@@ -619,7 +634,7 @@ public class Session {
 		}
 	}
 
-	private void writeDatabaseInformationToGitHubOutput(Database database, String connectionString, String users, String protocol, int port) throws FileNotFoundException {
+	private void writeDatabaseInformationToGitHubOutput(Database database, String connectionString, String users, String protocol, int port, String hostname, String serviceName) throws FileNotFoundException {
 		if (githubOutput != null) {
 			try (PrintWriter out = new PrintWriter(new BufferedOutputStream(new FileOutputStream(githubOutput, true)))) {
 				System.out.printf("::add-mask::%s%n", database.getPassword());
@@ -633,7 +648,7 @@ public class Session {
 								database_password=%s
 								database_version=%s
 								connection_string_suffix="%s"%n""",
-							protocol, database.getHost(), port, database.getService(), users, database.getPassword(), database.getVersion(),
+							protocol, hostname, port, serviceName, users, database.getPassword(), database.getVersion(),
 							connectionString);
 				} else {
 					out.printf("""
@@ -645,7 +660,7 @@ public class Session {
 								database_password=%s
 								database_version=%s
 								connection_string_suffix=%s%n""",
-							protocol, database.getHost(), port, database.getService(), users, database.getPassword(), database.getVersion(),
+							protocol, hostname, port, serviceName, users, database.getPassword(), database.getVersion(),
 							connectionString);
 				}
 			}

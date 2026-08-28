@@ -9,7 +9,7 @@ branding:
 inputs:
   version:
     description: 'The version to use.'
-    default: 'v1.0.30'
+    default: 'v1.0.31'
     required: true
   action:
     description: 'The action to run (create*, delete, skip-testing).'
@@ -28,6 +28,10 @@ inputs:
     required: false
   surround-connection-string-with-double-quotes:
     description: 'If the connection string must be surrounded by double quotes (false*, true).'
+    default: 'false'
+    required: false
+  fully-qualified-names:
+    description: 'If the `database_host` and `database_service` output parameters must return a fully qualified hostname and service name (including the domain name) (false*, true).'
     default: 'false'
     required: false
   prefix_list:
@@ -102,7 +106,8 @@ runs:
         ${GITHUB_ACTION_PATH}/setup-testpilot --create \
         --user "${{ inputs.user }}" --oci-service "${{ inputs.oci-service }}" \
         --connection-string-format "${{ inputs.connection-string-format }}" \
-        --surround-connection-string-with-double-quotes "${{ inputs.surround-connection-string-with-double-quotes }}"
+        --surround-connection-string-with-double-quotes "${{ inputs.surround-connection-string-with-double-quotes }}" \
+        --fully-qualified-names "${{ inputs.fully-qualified-names }}"
 
     - name: 'Delete'
       id: delete
@@ -113,9 +118,7 @@ runs:
         JOBID: ${{ job.check_run_id }}
       run: |
         ${GITHUB_ACTION_PATH}/setup-testpilot --delete \
-        --user "${{ inputs.user }}" --oci-service "${{ inputs.oci-service }}" \
-        --connection-string-format "${{ inputs.connection-string-format }}" \
-        --surround-connection-string-with-double-quotes "${{ inputs.surround-connection-string-with-double-quotes }}"
+        --user "${{ inputs.user }}" --oci-service "${{ inputs.oci-service }}"
 
     - name: 'Create registration token'
       id: create_registration_token
